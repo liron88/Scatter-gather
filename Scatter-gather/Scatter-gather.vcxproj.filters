@@ -15,7 +15,12 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="D:\Temp\sg_copy.h">
+    <ClCompile Include="sg_copy.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="sg_copy.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
