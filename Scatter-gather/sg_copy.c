@@ -67,6 +67,21 @@ sg_entry_t* sg_map(void* buf, int length)
   return list_head;
 }
 
+/*
+* sg_destroy    Destroy a scatter-gather list
+*
+* @in sg_list   A scatter-gather list
+*/
+void sg_destroy(sg_entry_t *sg_list)
+{
+  while (sg_list != NULL)
+  {
+    sg_entry_t* next_sg_entry_t = sg_list->next;
+    free(sg_list);
+    sg_list = next_sg_entry_t;
+  }
+}
+
 int main(int argc, char *argv[]) 
 {
 
