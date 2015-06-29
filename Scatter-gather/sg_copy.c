@@ -31,7 +31,7 @@ sg_entry_t* sg_map(void* buf, int length)
     count++;
   }
 
-  // check if initial physical address is aligned on a PAGE_SIZE address; 
+  // check if initial physical address is aligned on a PAGE_SIZE address 
   if (count == 0)
   {
     count = length <= PAGE_SIZE ? length : PAGE_SIZE;
@@ -49,7 +49,8 @@ sg_entry_t* sg_map(void* buf, int length)
   {
     // calculate count and address
     paddr += count;
-    count = remaining_length <= PAGE_SIZE ? remaining_length : PAGE_SIZE;
+    count = remaining_length <= PAGE_SIZE ?
+            remaining_length : PAGE_SIZE;
 
     // create new entry
     list_curr = (sg_entry_t*)malloc(sizeof(sg_entry_t));
@@ -122,14 +123,16 @@ int sg_copy(sg_entry_t *src, sg_entry_t *dest, int src_offset, int count)
     src_curr = src_curr->next;
   }
 
-  // check if the src exists and if the offset is smaller than the total number of available bytes
-  // if not, 0 bytes are copied
+  // check if the src exists and if the offset is smaller than the total number
+  // of available bytes. if not, 0 bytes are copied
   if (src_curr == NULL) return 0;
 
   // src_curr now points to the entry from which the first byte is copied
   offset_in_first_entry = src_offset - bytes_skipped;
   remaining_bytes_in_src_entry = src_curr->count - offset_in_first_entry;
-  bytes_to_copy_from_src_entry = remaining_bytes_to_copy <= remaining_bytes_in_src_entry ? remaining_bytes_to_copy : remaining_bytes_in_src_entry;
+  bytes_to_copy_from_src_entry = 
+    remaining_bytes_to_copy <= remaining_bytes_in_src_entry ?
+    remaining_bytes_to_copy : remaining_bytes_in_src_entry;
   
   // copy from source to destination
   dest_curr->paddr = src_curr->paddr + offset_in_first_entry;
@@ -145,7 +148,9 @@ int sg_copy(sg_entry_t *src, sg_entry_t *dest, int src_offset, int count)
   {
     dest_curr = (sg_entry_t*)malloc(sizeof(sg_entry_t));
     remaining_bytes_in_src_entry = src_curr->count;
-    bytes_to_copy_from_src_entry = remaining_bytes_to_copy <= remaining_bytes_in_src_entry ? remaining_bytes_to_copy : remaining_bytes_in_src_entry;
+    bytes_to_copy_from_src_entry = 
+      remaining_bytes_to_copy <= remaining_bytes_in_src_entry ?
+      remaining_bytes_to_copy : remaining_bytes_in_src_entry;
 
     // copy from source to destination
     dest_curr->paddr = src_curr->paddr;
@@ -165,8 +170,8 @@ int sg_copy(sg_entry_t *src, sg_entry_t *dest, int src_offset, int count)
 int main(int argc, char *argv[]) 
 {
   // test
-  int arr[20];
-  sg_entry_t* head = sg_map(arr, 14);
+  int var;
+  sg_entry_t* head = sg_map(&var, 14);
   sg_entry_t* dst = (sg_entry_t*)malloc(sizeof(sg_entry_t));
   int bytes_copied = sg_copy(head, dst, 0, 62);
 
