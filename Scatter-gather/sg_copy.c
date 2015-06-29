@@ -2,6 +2,23 @@
 #include "sg_copy.h"
 
 /*
+* init_entry    Initialize an entry in a scatter-gather list
+*
+* @in entry     Entry to initilaize
+* @in paddr     Physical address of the initialized entry
+* @in count     The number of bytes in the initialized entry
+* @in next_entry Pointer to the next entry is the scatter-gather list
+*/
+void init_entry(sg_entry_t* entry, physaddr_t paddr, int count, sg_entry_t* next_entry)
+{
+  if (entry == NULL) return;
+
+  entry->paddr = paddr;
+  entry->count = count;
+  entry->next = next_entry;
+}
+
+/*
 * sg_map        Map a memory buffer using a scatter-gather list
 *
 * @in buf       Pointer to buffer
@@ -23,26 +40,30 @@ sg_entry_t* sg_map(void* buf, int length)
   int remaining_length;
   int count = 0;
   
+  // check for illegal input parameters
   if (buf == NULL) return NULL;
   if (length <= 0) return NULL;
 
+  // align the entries on a PAGE_SIZE address, starting from the second entry.
+  // hence, count how many bytes to include in the first entry in order
+  // to align the rest of the entries
   while (((paddr + count) % PAGE_SIZE) && (count < length))
   {
     count++;
   }
 
-  // check if initial physical address is aligned on a PAGE_SIZE address 
+  // check if the initial physical address is aligned on a PAGE_SIZE address 
   if (count == 0)
   {
     count = length <= PAGE_SIZE ? length : PAGE_SIZE;
   }
 
+  // create new scatter-gather list
   list_head = (sg_entry_t*)malloc(sizeof(sg_entry_t));
-  list_head->paddr = paddr;
-  list_head->count = count;
-  list_head->next = NULL;
+  init_entry(list_head, paddr, count, NULL);
   list_prev = list_head;
 
+  // update status
   remaining_length = length - count;
 
   while (remaining_length > 0)
@@ -54,14 +75,13 @@ sg_entry_t* sg_map(void* buf, int length)
 
     // create new entry
     list_curr = (sg_entry_t*)malloc(sizeof(sg_entry_t));
-    // insert values to current entry
-    list_curr->paddr = paddr;
-    list_curr->count = count;
-    list_curr->next = NULL;
+    // insert values to the current entry
+    init_entry(list_curr, paddr, count, NULL);
     // connect previous entry with the current entry
     list_prev->next = list_curr;
     // prepare for the next iteration
     list_prev = list_curr;
+    // update status
     remaining_length -= count;
   }
 
@@ -126,8 +146,9 @@ int sg_copy(sg_entry_t *src, sg_entry_t *dest, int src_offset, int count)
   // check if the src exists and if the offset is smaller than the total number
   // of available bytes. if not, 0 bytes are copied
   if (src_curr == NULL) return 0;
-
   // src_curr now points to the entry from which the first byte is copied
+
+  // calculate how many bytes to copy from the current source entry
   offset_in_first_entry = src_offset - bytes_skipped;
   remaining_bytes_in_src_entry = src_curr->count - offset_in_first_entry;
   bytes_to_copy_from_src_entry = 
@@ -135,33 +156,43 @@ int sg_copy(sg_entry_t *src, sg_entry_t *dest, int src_offset, int count)
     remaining_bytes_to_copy : remaining_bytes_in_src_entry;
   
   // copy from source to destination
-  dest_curr->paddr = src_curr->paddr + offset_in_first_entry;
-  dest_curr->count = bytes_to_copy_from_src_entry;
-  dest_curr->next = NULL;
+  init_entry(dest_curr, 
+             src_curr->paddr + offset_in_first_entry, 
+             bytes_to_copy_from_src_entry, 
+             NULL);
   dest_prev = dest_curr;
 
+  //update status
   bytes_copied += bytes_to_copy_from_src_entry;
   remaining_bytes_to_copy -= bytes_to_copy_from_src_entry;
+  // move to next source entry
   src_curr = src_curr->next;
 
   while (remaining_bytes_to_copy > 0 && src_curr != NULL && src_curr->count > 0)
   {
+    // insert new entry in destination
     dest_curr = (sg_entry_t*)malloc(sizeof(sg_entry_t));
+
+    // calculate how many bytes to copy from the current source entry
     remaining_bytes_in_src_entry = src_curr->count;
     bytes_to_copy_from_src_entry = 
       remaining_bytes_to_copy <= remaining_bytes_in_src_entry ?
       remaining_bytes_to_copy : remaining_bytes_in_src_entry;
 
     // copy from source to destination
-    dest_curr->paddr = src_curr->paddr;
-    dest_curr->count = bytes_to_copy_from_src_entry;
-    dest_curr->next = NULL;
+    init_entry(dest_curr, 
+               src_curr->paddr, 
+               bytes_to_copy_from_src_entry, 
+               NULL);
+    // connect previous entry with the current entry
     dest_prev->next = dest_curr;
+    // prepare for the next iteration
     dest_prev = dest_curr;
+    src_curr = src_curr->next;
 
+    // update status
     bytes_copied += bytes_to_copy_from_src_entry;
     remaining_bytes_to_copy -= bytes_to_copy_from_src_entry;
-    src_curr = src_curr->next;
   }
 
   return bytes_copied;
