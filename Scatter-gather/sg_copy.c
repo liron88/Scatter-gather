@@ -93,11 +93,21 @@ sg_entry_t* sg_map(void* buf, int length)
 *
 * @in sg_list   A scatter-gather list
 */
-void sg_destroy(sg_entry_t *sg_list)
+void sg_destroy(sg_entry_t* sg_list)
 {
+  sg_entry_t* next_sg_entry_t;
+
   while (sg_list != NULL)
   {
-    sg_entry_t* next_sg_entry_t = sg_list->next;
+    // avoid memory access violation.
+    // either an uninitialized entry, or a list which a part of it was already
+    // freed
+    if ((sg_list->count <= 0) || 
+        (sg_list->next != NULL && sg_list->next->count <= 0))
+    {
+      sg_list->next = NULL;
+    }
+    next_sg_entry_t = sg_list->next;
     free(sg_list);
     sg_list = next_sg_entry_t;
   }
@@ -119,7 +129,7 @@ void sg_destroy(sg_entry_t *sg_list)
 *               possible that fewer bytes can be copied.
 *               The function returns the actual number of bytes copied
 */
-int sg_copy(sg_entry_t *src, sg_entry_t *dest, int src_offset, int count)
+int sg_copy(sg_entry_t* src, sg_entry_t* dest, int src_offset, int count)
 {
   sg_entry_t* src_curr = src;
   sg_entry_t* dest_curr = dest;
@@ -136,7 +146,7 @@ int sg_copy(sg_entry_t *src, sg_entry_t *dest, int src_offset, int count)
   if (src_offset < 0) return 0;
   if (count <= 0) return 0;
 
-  // skip entries (and bytes) before the offset.
+  // skip entries (and bytes) before the offset
   while ((src_curr != NULL) && ((bytes_skipped + src_curr->count) <= src_offset))
   {
     bytes_skipped += src_curr->count;
@@ -144,7 +154,7 @@ int sg_copy(sg_entry_t *src, sg_entry_t *dest, int src_offset, int count)
   }
 
   // check if the src exists and if the offset is smaller than the total number
-  // of available bytes. if not, 0 bytes are copied
+  // of available bytes. if not, no bytes are copied
   if (src_curr == NULL) return 0;
   // src_curr now points to the entry from which the first byte is copied
 
@@ -202,10 +212,17 @@ int main(int argc, char *argv[])
 {
   // test
   int var;
-  sg_entry_t* head = sg_map(&var, 14);
-  sg_entry_t* dst = (sg_entry_t*)malloc(sizeof(sg_entry_t));
-  int bytes_copied = sg_copy(head, dst, 0, 62);
+  int var2;
+  sg_entry_t* head = sg_map(&var, 74);
+  sg_entry_t* next = sg_map(&var2, 47);
 
+  sg_destroy(head->next);
+  head->next = next;
+
+  sg_entry_t* dst = (sg_entry_t*)malloc(sizeof(sg_entry_t));
+  int bytes_copied = sg_copy(head, dst, 38, 84);
+
+  sg_destroy(next);
   sg_destroy(head);
   sg_destroy(dst);
 
