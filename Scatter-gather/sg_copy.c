@@ -183,11 +183,13 @@ int sg_copy(sg_entry_t* src, sg_entry_t* dest, int src_offset, int count)
     void* pointer;
     sg_entry_t* src_curr_head = src_curr;
 
+    // calculate how many bytes to copy from the current source entry
     remaining_bytes_in_src_entry = src_curr->count;
     bytes_to_copy_from_src_entry =
       remaining_bytes_to_copy <= remaining_bytes_in_src_entry ?
     remaining_bytes_to_copy : remaining_bytes_in_src_entry;
-    // calculate how many bytes to copy from the current source entry
+    
+    // check for continous entries
     while ((src_curr->next != NULL) &&
       (src_curr->next->paddr == (src_curr->paddr + src_curr->count)))
     {
