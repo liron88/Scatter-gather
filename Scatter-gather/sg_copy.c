@@ -210,7 +210,7 @@ int sg_copy(sg_entry_t* src, sg_entry_t* dest, int src_offset, int count)
 
 int main(int argc, char *argv[]) 
 {
-  // test
+  // example
   int var;
   int var2;
   sg_entry_t* head = sg_map(&var, 74);
