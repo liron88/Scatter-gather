@@ -134,6 +134,7 @@ int sg_copy(sg_entry_t* src, sg_entry_t* dest, int src_offset, int count)
   sg_entry_t* src_curr = src;
   sg_entry_t* dest_curr = dest;
   sg_entry_t* dest_prev;
+  void* pointer;
   int bytes_copied = 0;
   int bytes_skipped = 0;
   int remaining_bytes_to_copy = count;
@@ -166,10 +167,10 @@ int sg_copy(sg_entry_t* src, sg_entry_t* dest, int src_offset, int count)
     remaining_bytes_to_copy : remaining_bytes_in_src_entry;
   
   // copy from source to destination
-  init_entry(dest_curr, 
-             src_curr->paddr + offset_in_first_entry, 
-             bytes_to_copy_from_src_entry, 
-             NULL);
+  init_entry(dest_curr,
+    src_curr->paddr + offset_in_first_entry,
+    bytes_to_copy_from_src_entry,
+    NULL);
   dest_prev = dest_curr;
 
   //update status
@@ -180,9 +181,6 @@ int sg_copy(sg_entry_t* src, sg_entry_t* dest, int src_offset, int count)
 
   while (remaining_bytes_to_copy > 0 && src_curr != NULL && src_curr->count > 0)
   {
-    // insert new entry in destination
-    dest_curr = (sg_entry_t*)malloc(sizeof(sg_entry_t));
-
     // calculate how many bytes to copy from the current source entry
     remaining_bytes_in_src_entry = src_curr->count;
     bytes_to_copy_from_src_entry = 
@@ -190,13 +188,15 @@ int sg_copy(sg_entry_t* src, sg_entry_t* dest, int src_offset, int count)
       remaining_bytes_to_copy : remaining_bytes_in_src_entry;
 
     // copy from source to destination
-    init_entry(dest_curr, 
-               src_curr->paddr, 
-               bytes_to_copy_from_src_entry, 
-               NULL);
+    pointer = phys_to_ptr(src_curr->paddr);
+    dest_curr = sg_map(pointer, bytes_to_copy_from_src_entry);
     // connect previous entry with the current entry
     dest_prev->next = dest_curr;
     // prepare for the next iteration
+    while (dest_curr->next != NULL)
+    {
+      dest_curr = dest_curr->next;
+    }
     dest_prev = dest_curr;
     src_curr = src_curr->next;
 
@@ -220,7 +220,7 @@ int main(int argc, char *argv[])
   head->next = next;
 
   sg_entry_t* dst = (sg_entry_t*)malloc(sizeof(sg_entry_t));
-  int bytes_copied = sg_copy(head, dst, 38, 84);
+  int bytes_copied = sg_copy(head, dst, 6, 84);
 
   sg_destroy(next);
   sg_destroy(head);
