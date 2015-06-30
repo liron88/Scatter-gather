@@ -134,7 +134,6 @@ int sg_copy(sg_entry_t* src, sg_entry_t* dest, int src_offset, int count)
   sg_entry_t* src_curr = src;
   sg_entry_t* dest_curr = dest;
   sg_entry_t* dest_prev;
-  void* pointer;
   int bytes_copied = 0;
   int bytes_skipped = 0;
   int remaining_bytes_to_copy = count;
@@ -181,14 +180,29 @@ int sg_copy(sg_entry_t* src, sg_entry_t* dest, int src_offset, int count)
 
   while (remaining_bytes_to_copy > 0 && src_curr != NULL && src_curr->count > 0)
   {
-    // calculate how many bytes to copy from the current source entry
+    void* pointer;
+    sg_entry_t* src_curr_head = src_curr;
+
     remaining_bytes_in_src_entry = src_curr->count;
-    bytes_to_copy_from_src_entry = 
+    bytes_to_copy_from_src_entry =
       remaining_bytes_to_copy <= remaining_bytes_in_src_entry ?
+    remaining_bytes_to_copy : remaining_bytes_in_src_entry;
+    // calculate how many bytes to copy from the current source entry
+    while ((src_curr->next != NULL) &&
+      (src_curr->next->paddr == (src_curr->paddr + src_curr->count)))
+    {
+      src_curr = src_curr->next;
+      remaining_bytes_in_src_entry += src_curr->count;
+      bytes_to_copy_from_src_entry =
+        remaining_bytes_to_copy <= remaining_bytes_in_src_entry ?
       remaining_bytes_to_copy : remaining_bytes_in_src_entry;
 
+      // no need to go further
+      if (remaining_bytes_to_copy <= remaining_bytes_in_src_entry) break;
+    }
+
     // copy from source to destination
-    pointer = phys_to_ptr(src_curr->paddr);
+    pointer = phys_to_ptr(src_curr_head->paddr);
     dest_curr = sg_map(pointer, bytes_to_copy_from_src_entry);
     // connect previous entry with the current entry
     dest_prev->next = dest_curr;
